@@ -27,7 +27,8 @@ import (
 var _ machinery.Template = &Types{}
 
 // Types scaffolds the file that defines the schema for a CRD
-// nolint:maligned
+//
+//nolint:maligned
 type Types struct {
 	machinery.TemplateMixin
 	machinery.MultiGroupMixin
@@ -37,7 +38,7 @@ type Types struct {
 	Force bool
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *Types) SetTemplateDefaults() error {
 	if f.Path == "" {
 		if f.MultiGroup && f.Resource.Group != "" {

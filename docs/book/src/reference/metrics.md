@@ -3,6 +3,7 @@
 By default, controller-runtime builds a global Prometheus registry and
 publishes [a collection of performance metrics](/reference/metrics-reference.md) for each controller.
 
+
 <aside class="note warning">
 <h1>IMPORTANT: If you are using `kube-rbac-proxy`</h1>
 
@@ -113,7 +114,7 @@ spec:
   serviceAccountName: controller-manager
   containers:
   - name: metrics-consumer
-    image: curlimages/curl:7.78.0
+    image: curlimages/curl:latest
     command: ["/bin/sh"]
     args:
       - "-c"
@@ -126,54 +127,123 @@ spec:
           sleep 60;
         done
 ```
+
+### **(Recommended)** Enabling certificates for Production (Disabled by default)
+
 <aside class="warning">
-<h1>Changes Recommended for Production</h1>
+<h1>Why Is This Not Enabled by Default?</h1>
+
+This option is not enabled by default because it introduces a dependency on CertManager.
+To keep the project as lightweight and beginner-friendly as possible, it is disabled by default.
+
+</aside>
+
+<aside class="warning">
+<h1>Recommended for Production</h1>
 
 The default scaffold in `cmd/main.go` uses a **controller-runtime feature** to
 automatically generate a self-signed certificate to secure the metrics server.
-While this is convenient for development and testing, it is not recommended
+While this is convenient for development and testing, it is **not** recommended
 for production.
 
-You can mount a certificate into the Manager Deployment and configure the
-metrics server to use it, as shown below:
-
-```go
-if secureMetrics {
-	...
-
-    // Specify the path where the certificate is mounted
-    metricsServerOptions.CertDir = "/tmp/k8s-metrics-server/serving-certs"
-    metricsServerOptions.CertName = "tls.crt"
-    metricsServerOptions.KeyName = "tls.key"
-}
-```
-
-Additionally, review the configuration file at `config/prometheus/monitor.yaml`
-to ensure secure integration with Prometheus. **If `insecureSkipVerify: true` is
-enabled, certificate verification is turned off. This is not recommended for production**
-as it exposes the system to man-in-the-middle attacks, potentially allowing
-unauthorized access to metrics data.
+Those certificates are used to secure the transport layer (TLS).
+The token authentication using `authn/authz`, which is enabled by default serves
+as the application-level credential. However, for example, when you enable
+the integration of your metrics with Prometheus, those certificates can be used
+to secure the communication.
 
 </aside>
 
+Projects built with Kubebuilder releases `4.4.0` and above have the logic scaffolded
+to enable the usage of certificates managed by [CertManager](https://cert-manager.io/)
+for securing the metrics server. Following the steps below, you can configure your
+project to use certificates managed by CertManager.
 
-<aside class="note">
-<h1>Controller-Runtime Auth/Authz Feature Current Known Limitations and Considerations</h1>
+1. **Enable Cert-Manager in `config/default/kustomization.yaml`:**
+    - Uncomment the cert-manager resource to include it in your project:
 
-Some known limitations and considerations have been identified. The settings for `cache TTL`, `anonymous access`, and
-`timeouts` are currently hardcoded, which may lead to performance and security concerns due to the inability to
-fine-tune these parameters. Additionally, the current implementation lacks support for configurations like
-`alwaysAllow` for critical paths (e.g., `/healthz`) and `alwaysAllowGroups` (e.g., `system:masters`), potentially
-causing operational challenges. Furthermore, the system heavily relies on stable connectivity to the `kube-apiserver`,
-making it vulnerable to metrics outages during network instability. This can result in the loss of crucial metrics data,
-particularly during critical periods when monitoring and diagnosing issues in real-time is essential.
+      ```yaml
+      - ../certmanager
+      ```
 
-An [issue](https://github.com/kubernetes-sigs/controller-runtime/issues/2781) has been opened to
-enhance the controller-runtime and address these considerations.
-</aside>
+2. **Enable the Patch to configure the usage of the certs in the Controller Deployment in `config/default/kustomization.yaml`:**
+    - Uncomment the `cert_metrics_manager_patch.yaml` to mount the `serving-cert` secret in the Manager Deployment.
 
+      ```yaml
+      # Uncomment the patches line if you enable Metrics and CertManager
+      # [METRICS-WITH-CERTS] To enable metrics protected with certManager, uncomment the following line.
+      # This patch will protect the metrics with certManager self-signed certs.
+      - path: cert_metrics_manager_patch.yaml
+        target:
+          kind: Deployment
+      ```
+3. **Enable the CertManager replaces for the Metrics Server certificates in `config/default/kustomization.yaml`:**
+    - Uncomment the replacements block bellow. It is required to properly set the DNS names for the certificates configured under `config/certmanager`.
 
-### By using Network Policy (You can optionally enable)
+      ```yaml
+      # [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER' prefix.
+      # Uncomment the following replacements to add the cert-manager CA injection annotations
+      #replacements:
+      # - source: # Uncomment the following block to enable certificates for metrics
+      #     kind: Service
+      #     version: v1
+      #     name: controller-manager-metrics-service
+      #     fieldPath: metadata.name
+      #   targets:
+      #     - select:
+      #         kind: Certificate
+      #         group: cert-manager.io
+      #         version: v1
+      #         name: metrics-certs
+      #       fieldPaths:
+      #         - spec.dnsNames.0
+      #         - spec.dnsNames.1
+      #       options:
+      #         delimiter: '.'
+      #         index: 0
+      #         create: true
+      #
+      # - source:
+      #     kind: Service
+      #     version: v1
+      #     name: controller-manager-metrics-service
+      #     fieldPath: metadata.namespace
+      #   targets:
+      #     - select:
+      #         kind: Certificate
+      #         group: cert-manager.io
+      #         version: v1
+      #         name: metrics-certs
+      #       fieldPaths:
+      #         - spec.dnsNames.0
+      #         - spec.dnsNames.1
+      #       options:
+      #         delimiter: '.'
+      #         index: 1
+      #         create: true
+      #
+      ```
+
+4. **Enable the Patch for the `ServiceMonitor` to Use the Cert-Manager-Managed Secret `config/prometheus/kustomization.yaml`:**
+    - Add or uncomment the `ServiceMonitor` patch to securely reference the cert-manager-managed secret, replacing insecure configurations with secure certificate verification:
+
+      ```yaml
+      # [PROMETHEUS-WITH-CERTS] The following patch configures the ServiceMonitor in ../prometheus
+      # to securely reference certificates created and managed by cert-manager.
+      # Additionally, ensure that you uncomment the [METRICS WITH CERTMANAGER] patch under config/default/kustomization.yaml
+      # to mount the "metrics-server-cert" secret in the Manager Deployment.
+      patches:
+        - path: monitor_tls_patch.yaml
+          target:
+            kind: ServiceMonitor
+      ```
+
+    > **NOTE** that the `ServiceMonitor` patch above will ensure that if you enable the Prometheus integration,
+    it will securely reference the certificates created and managed by CertManager. But it will **not** enable the
+    integration with Prometheus. To enable the integration with Prometheus, you need uncomment the `#- ../certmanager`
+    in the `config/default/kustomization.yaml`. For more information, see [Exporting Metrics for Prometheus](#exporting-metrics-for-prometheus).
+
+### **(Optional)** By using Network Policy (Disabled by default)
 
 NetworkPolicy acts as a basic firewall for pods within a Kubernetes cluster, controlling traffic
 flow at the IP address or port level. However, it doesn't handle `authn/authz`.
@@ -186,16 +256,6 @@ Uncomment the following line in the `config/default/kustomization.yaml`:
 # Only CR(s) which uses webhooks and applied on namespaces labeled 'webhooks: enabled' will be able to work properly.
 #- ../network-policy
 ```
-
-### By exposing the metrics endpoint using HTTPS and CertManager
-
-Integrating `cert-manager` with your metrics service can secure the endpoint via TLS encryption.
-
-To modify your project setup to expose metrics using HTTPS with
-the help of cert-manager, you'll need to change the configuration of both
-the `Service` under `config/default/metrics_service.yaml` and
-the `ServiceMonitor` under `config/prometheus/monitor.yaml` to use a secure HTTPS port
-and ensure the necessary certificate is applied.
 
 ## Exporting Metrics for Prometheus
 
@@ -296,3 +356,18 @@ Those metrics will be available for prometheus or
 other openmetrics systems to scrape.
 
 ![Screen Shot 2021-06-14 at 10 15 59 AM](https://user-images.githubusercontent.com/37827279/121932262-8843cd80-ccf9-11eb-9c8e-98d0eda80169.png)
+
+<aside class="note">
+<h1>Controller-Runtime Auth/Authz Feature Current Known Limitations and Considerations</h1>
+
+Some known limitations and considerations have been identified. The settings for `cache TTL`, `anonymous access`, and
+`timeouts` are currently hardcoded, which may lead to performance and security concerns due to the inability to
+fine-tune these parameters. Additionally, the current implementation lacks support for configurations like
+`alwaysAllow` for critical paths (e.g., `/healthz`) and `alwaysAllowGroups` (e.g., `system:masters`), potentially
+causing operational challenges. Furthermore, the system heavily relies on stable connectivity to the `kube-apiserver`,
+making it vulnerable to metrics outages during network instability. This can result in the loss of crucial metrics data,
+particularly during critical periods when monitoring and diagnosing issues in real-time is essential.
+
+An [issue](https://github.com/kubernetes-sigs/controller-runtime/issues/2781) has been opened to
+enhance the controller-runtime and address these considerations.
+</aside>

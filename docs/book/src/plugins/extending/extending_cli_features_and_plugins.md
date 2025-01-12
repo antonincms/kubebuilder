@@ -49,9 +49,9 @@ the `create api` and `create webhook` subcommands.
 Plugins are responsible for implementing the code that will be executed when the sub-commands are called.
 You can create a new plugin by implementing the [Plugin interface][plugin-interface].
 
-On top of being a `Base`, a plugin should also implement the [`SubcommandMetadata`][plugin-subc]
-interface so it can be run with a CLI. It optionally to set custom help
-text for the target  command; this method can be a no-op, which will
+On top of being a `Base`, a plugin should also implement the [`SubcommandMetadata`][plugin-subc-metadata]
+interface so it can be run with a CLI. Optionally, a custom help
+text for the target  command can be set; this method can be a no-op, which will
 preserve the default help text set by the [cobra][cobra] command
 constructors.
 
@@ -80,7 +80,7 @@ There are two ways to specify a plugin to run:
 - Setting `kubebuilder init --plugins=<plugin key>`, which will initialize a project configured for plugin with key
   `<plugin key>`.
 
-- A `layout: <plugin key>` in the scaffolded [PROJECT configuration file][project-file]. Commands (except for `init`, which scaffolds this file) will look at this value before running to choose which plugin to run.
+- A `layout: <plugin key>` in the scaffolded [PROJECT configuration file][project-file-config]. Commands (except for `init`, which scaffolds this file) will look at this value before running to choose which plugin to run.
 
 By default, `<plugin key>` will be `go.kubebuilder.io/vX`, where `X` is some integer.
 
@@ -120,10 +120,10 @@ This library allows you to:
 - Add [markers][markers-scaffold] to the scaffolded files.
 - Specify templates for your scaffolds.
 
-#### Example: Bollerplate
+#### Example: Boilerplate
 
-For instance, the go/v4 scaffolds the `cmd/go.mod` file by defining an object that [implements the machinery interface][machinery].
-The `Template.SetTemplateDefaults`, the `raw template is set to the body:
+For instance, the go/v4 scaffolds the `go.mod` file by defining an object that [implements the machinery interface][machinery].
+The raw template is set to the `TemplateBody` field on the `Template.SetTemplateDefaults` method:
 
 ```go
 {{#include ./../../../../../pkg/plugins/golang/v4/scaffolds/internal/templates/gomod.go}}
@@ -184,10 +184,10 @@ These utilities allow you to:
 ### Example
 
 If you need to insert custom content into a scaffolded file,
-you can use the `Insert` function provided by the plugin utilities:
+you can use the `InsertCode` function provided by the plugin utilities:
 
 ```go
-pluginutil.Insert(file, location, content)
+pluginutil.InsertCode(filename, target, code)
 ```
 
 This approach enables you to extend and modify the generated
@@ -394,17 +394,18 @@ creating features or plugins that can rely on this information.
 [sdk]: https://github.com/operator-framework/operator-sdk
 [plugin-interface]: https://pkg.go.dev/sigs.k8s.io/kubebuilder/v4/pkg/plugin
 [machinery]: https://github.com/kubernetes-sigs/kubebuilder/tree/master/pkg/machinery
-[plugin-subc]: https://pkg.go.dev/sigs.k8s.io/kubebuilder/v4/pkg/plugin#Subcommand
+[plugin-subc-metadata]: https://pkg.go.dev/sigs.k8s.io/kubebuilder/v4/pkg/plugin#SubcommandMetadata
 [plugin-version-type]: https://pkg.go.dev/sigs.k8s.io/kubebuilder/v4/pkg/plugin#Version
 [bundle-plugin-doc]: https://pkg.go.dev/sigs.k8s.io/kubebuilder/v4/pkg/plugin#Bundle
 [deprecate-plugin-doc]: https://pkg.go.dev/sigs.k8s.io/kubebuilder/v4/pkg/plugin#Deprecated
 [plugin-sub-command]: https://pkg.go.dev/sigs.k8s.io/kubebuilder/v4/pkg/plugin#Subcommand
 [plugin-update-meta]: https://pkg.go.dev/sigs.k8s.io/kubebuilder/v4/pkg/plugin#UpdatesMetadata
+[plugin-utils]: https://pkg.go.dev/sigs.k8s.io/kubebuilder/v4/pkg/plugin/util
 [markers-scaffold]: ./../../reference/markers/scaffold.md
-[kb-utils]: ./../../../../../pkg/plugin/util/util.go
+[kb-utils]: https://github.com/kubernetes-sigs/kubebuilder/blob/book-v4/pkg/plugin/util/util.go
 [project-file-config]: ./../../reference/project-config.md
-[cli]: ./../../../../../pkg/cli
-[kb-go-plugin]: ./../../../../../pkg/plugins/golang/v4
+[cli]: https://github.com/kubernetes-sigs/kubebuilder/tree/book-v4/pkg/cli
+[kb-go-plugin]: https://github.com/kubernetes-sigs/kubebuilder/tree/book-v4/pkg/plugins/golang/v4
 [cobra]: https://github.com/spf13/cobra
 [external-plugin]: external-plugins.md
 [deploy-image]: ./../available/deploy-image-plugin-v1-alpha.md

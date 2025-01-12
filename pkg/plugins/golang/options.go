@@ -72,6 +72,9 @@ type Options struct {
 	DoDefaulting bool
 	DoValidation bool
 	DoConversion bool
+
+	// Spoke versions for conversion webhook
+	Spoke []string
 }
 
 // UpdateResource updates the provided resource with the options
@@ -81,7 +84,6 @@ func (opts Options) UpdateResource(res *resource.Resource, c config.Config) {
 	}
 
 	if opts.DoAPI {
-		//nolint:staticcheck
 		res.Path = resource.APIPackagePath(c.GetRepository(), res.Group, res.Version, c.IsMultiGroup())
 
 		res.API = &resource.API{
@@ -96,7 +98,6 @@ func (opts Options) UpdateResource(res *resource.Resource, c config.Config) {
 	}
 
 	if opts.DoDefaulting || opts.DoValidation || opts.DoConversion {
-		//nolint:staticcheck
 		res.Path = resource.APIPackagePath(c.GetRepository(), res.Group, res.Version, c.IsMultiGroup())
 
 		res.Webhooks.WebhookVersion = "v1"
@@ -108,6 +109,7 @@ func (opts Options) UpdateResource(res *resource.Resource, c config.Config) {
 		}
 		if opts.DoConversion {
 			res.Webhooks.Conversion = true
+			res.Webhooks.Spoke = opts.Spoke
 		}
 	}
 

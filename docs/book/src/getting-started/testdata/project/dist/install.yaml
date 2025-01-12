@@ -11,7 +11,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: memcacheds.cache.example.com
 spec:
   group: cache.example.com
@@ -238,6 +238,27 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: project
+  name: project-memcached-admin-role
+rules:
+- apiGroups:
+  - cache.example.com
+  resources:
+  - memcacheds
+  verbs:
+  - '*'
+- apiGroups:
+  - cache.example.com
+  resources:
+  - memcacheds/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project
   name: project-memcached-editor-role
 rules:
 - apiGroups:
@@ -372,6 +393,7 @@ spec:
     protocol: TCP
     targetPort: 8443
   selector:
+    app.kubernetes.io/name: project
     control-plane: controller-manager
 ---
 apiVersion: apps/v1
@@ -387,12 +409,14 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      app.kubernetes.io/name: project
       control-plane: controller-manager
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
+        app.kubernetes.io/name: project
         control-plane: controller-manager
     spec:
       containers:
@@ -410,6 +434,7 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
+        ports: []
         readinessProbe:
           httpGet:
             path: /readyz
@@ -428,10 +453,14 @@ spec:
           capabilities:
             drop:
             - ALL
+        volumeMounts: []
       securityContext:
         runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: project-controller-manager
       terminationGracePeriodSeconds: 10
+      volumes: []
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -452,4 +481,5 @@ spec:
       insecureSkipVerify: true
   selector:
     matchLabels:
+      app.kubernetes.io/name: project
       control-plane: controller-manager

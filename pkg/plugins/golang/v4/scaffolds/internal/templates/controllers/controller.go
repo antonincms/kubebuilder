@@ -27,7 +27,8 @@ import (
 var _ machinery.Template = &Controller{}
 
 // Controller scaffolds the file that defines the controller for a CRD or a builtin resource
-// nolint:maligned
+//
+//nolint:maligned
 type Controller struct {
 	machinery.TemplateMixin
 	machinery.MultiGroupMixin
@@ -39,7 +40,7 @@ type Controller struct {
 	Force bool
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *Controller) SetTemplateDefaults() error {
 	if f.Path == "" {
 		if f.MultiGroup && f.Resource.Group != "" {

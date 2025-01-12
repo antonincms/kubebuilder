@@ -85,6 +85,12 @@ var _ = Describe("kubebuilder", func() {
 			regenerateProject(kbc, projectOutputDir)
 			validateDeployImagePlugin(projectFilePath)
 		})
+
+		It("should regenerate project with helm plugin with success", func() {
+			generateProjectWithHelmPlugin(kbc)
+			regenerateProject(kbc, projectOutputDir)
+			validateHelmPlugin(projectFilePath)
+		})
 	})
 })
 
@@ -117,6 +123,18 @@ func generateProject(kbc *utils.TestContext) {
 	)
 	Expect(err).NotTo(HaveOccurred(), "Failed to scaffold API with resource and controller")
 
+	By("creating API definition with controller and resource")
+	err = kbc.CreateAPI(
+		"--group", "crew",
+		"--version", "v2",
+		"--kind", "Memcached",
+		"--namespaced",
+		"--resource=true",
+		"--controller=false",
+		"--make=false",
+	)
+	Expect(err).NotTo(HaveOccurred(), "Failed to scaffold API with resource and controller")
+
 	By("creating Webhook for Memcached API")
 	err = kbc.CreateWebhook(
 		"--group", "crew",
@@ -125,6 +143,7 @@ func generateProject(kbc *utils.TestContext) {
 		"--defaulting",
 		"--programmatic-validation",
 		"--conversion",
+		"--spoke", "v2",
 	)
 	Expect(err).NotTo(HaveOccurred(), "Failed to scaffold webhook for Memcached API")
 
@@ -163,7 +182,7 @@ func generateProject(kbc *utils.TestContext) {
 		"--external-api-path=github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1",
 		"--external-api-domain=cert-manager.io",
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to scaffold API with external API")
 }
 
 func regenerateProject(kbc *utils.TestContext, projectOutputDir string) {
@@ -179,6 +198,12 @@ func generateProjectWithGrafanaPlugin(kbc *utils.TestContext) {
 	By("editing project to enable Grafana plugin")
 	err := kbc.Edit("--plugins", "grafana.kubebuilder.io/v1-alpha")
 	Expect(err).NotTo(HaveOccurred(), "Failed to edit project to enable Grafana Plugin")
+}
+
+func generateProjectWithHelmPlugin(kbc *utils.TestContext) {
+	By("editing project to enable Helm plugin")
+	err := kbc.Edit("--plugins", "helm.kubebuilder.io/v1-alpha")
+	Expect(err).NotTo(HaveOccurred(), "Failed to edit project to enable Helm Plugin")
 }
 
 func generateProjectWithDeployImagePlugin(kbc *utils.TestContext) {
@@ -322,4 +347,14 @@ func validateDeployImagePlugin(projectFile string) {
 		"Expected container command to match")
 	Expect(options.ContainerPort).To(Equal("11211"), "Expected container port to match")
 	Expect(options.RunAsUser).To(Equal("1001"), "Expected runAsUser to match")
+}
+
+func validateHelmPlugin(projectFile string) {
+	projectConfig := getConfigFromProjectFile(projectFile)
+
+	By("checking the Helm plugin in the PROJECT file")
+	var helmPluginConfig map[string]interface{}
+	err := projectConfig.DecodePluginConfig("helm.kubebuilder.io/v1-alpha", &helmPluginConfig)
+	Expect(err).NotTo(HaveOccurred(), "Failed to decode Helm plugin configuration")
+	Expect(helmPluginConfig).NotTo(BeNil(), "Expected Helm plugin configuration to be present in the PROJECT file")
 }

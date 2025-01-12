@@ -71,7 +71,12 @@ generate: generate-testdata generate-docs ## Update/generate all mock data. You 
 .PHONY: remove-spaces
 remove-spaces:
 	@echo "Removing trailing spaces"
-	@find . -type f -name "*.md" -exec sed -i '' 's/[[:space:]]*$$//' {} + || true
+	@bash -c ' \
+		if [[ "$$(uname)" == "Linux" ]]; then \
+			find . -type f -name "*.md" -exec sed -i "s/[[:space:]]*$$//" {} + || true; \
+		else \
+			find . -type f -name "*.md" -exec sed -i "" "s/[[:space:]]*$$//" {} + || true; \
+		fi'
 
 .PHONY: generate-testdata
 generate-testdata: ## Update/generate the testdata in $GOPATH/src/sigs.k8s.io/kubebuilder
@@ -80,8 +85,13 @@ generate-testdata: ## Update/generate the testdata in $GOPATH/src/sigs.k8s.io/ku
 	./test/testdata/generate.sh
 
 .PHONY: generate-docs
-generate-docs: ## Update/generate the docs in $GOPATH/src/sigs.k8s.io/kubebuilder
+generate-docs: ## Update/generate the docs
 	./hack/docs/generate.sh
+
+.PHONY: generate-charts
+generate-charts: build ## Re-generate the helm chart testdata only
+	rm -rf testdata/project-v4-with-plugins/dist/chart
+	(cd testdata/project-v4-with-plugins && ../../bin/kubebuilder edit --plugins=helm/v1-alpha)
 
 .PHONY: check-docs
 check-docs: ## Run the script to ensure that the docs are updated
@@ -95,16 +105,20 @@ lint: golangci-lint yamllint ## Run golangci-lint linter & yamllint
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
+.PHONY: lint-config
+lint-config: golangci-lint ## Verify golangci-lint linter configuration
+	$(GOLANGCI_LINT) config verify
+
 .PHONY: yamllint
 yamllint:
-	@files=$$(find testdata -name '*.yaml' ! -path 'testdata/*/dist/install.yaml'); \
+	@files=$$(find testdata -name '*.yaml' ! -path 'testdata/*/dist/*'); \
     	docker run --rm $$(tty -s && echo "-it" || echo) -v $(PWD):/data cytopia/yamllint:latest $$files -d "{extends: relaxed, rules: {line-length: {max: 120}}}" --no-warnings
 
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 golangci-lint:
 	@[ -f $(GOLANGCI_LINT) ] || { \
 	set -e ;\
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) v1.61.0 ;\
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) v1.62.2 ;\
 	}
 
 .PHONY: apidiff
@@ -171,3 +185,11 @@ test-spaces:  ## Run the trailing spaces check
 test-legacy:  ## Run the tests to validate legacy path for webhooks
 	rm -rf  ./testdata/**legacy**/
 	./test/testdata/legacy-webhook-path.sh
+
+.PHONY: install-helm
+install-helm: ## Install the latest version of Helm locally
+	@curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+.PHONY: helm-lint
+helm-lint: install-helm ## Lint the Helm chart in testdata
+	helm lint testdata/project-v4-with-plugins/dist/chart

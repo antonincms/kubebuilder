@@ -11,7 +11,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: bars.fiz.testproject.org
 spec:
   group: fiz.testproject.org
@@ -65,7 +65,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: bars.foo.testproject.org
 spec:
   group: foo.testproject.org
@@ -119,7 +119,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: busyboxes.example.com.testproject.org
 spec:
   group: example.com.testproject.org
@@ -235,7 +235,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: captains.crew.testproject.org
 spec:
   group: crew.testproject.org
@@ -289,7 +289,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: cruisers.ship.testproject.org
 spec:
   group: ship.testproject.org
@@ -343,7 +343,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: destroyers.ship.testproject.org
 spec:
   group: ship.testproject.org
@@ -397,7 +397,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: frigates.ship.testproject.org
 spec:
   group: ship.testproject.org
@@ -451,7 +451,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: healthcheckpolicies.foo.policy.testproject.org
 spec:
   group: foo.policy.testproject.org
@@ -505,7 +505,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: krakens.sea-creatures.testproject.org
 spec:
   group: sea-creatures.testproject.org
@@ -559,7 +559,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: leviathans.sea-creatures.testproject.org
 spec:
   group: sea-creatures.testproject.org
@@ -613,7 +613,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: memcacheds.example.com.testproject.org
 spec:
   group: example.com.testproject.org
@@ -734,7 +734,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.4
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: wordpresses.example.com.testproject.org
 spec:
   conversion:
@@ -888,6 +888,27 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-crew-captain-admin-role
+rules:
+- apiGroups:
+  - crew.testproject.org
+  resources:
+  - captains
+  verbs:
+  - '*'
+- apiGroups:
+  - crew.testproject.org
+  resources:
+  - captains/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
   name: project-v4-multigroup-crew-captain-editor-role
 rules:
 - apiGroups:
@@ -929,6 +950,27 @@ rules:
   - crew.testproject.org
   resources:
   - captains/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-example.com-busybox-admin-role
+rules:
+- apiGroups:
+  - example.com.testproject.org
+  resources:
+  - busyboxes
+  verbs:
+  - '*'
+- apiGroups:
+  - example.com.testproject.org
+  resources:
+  - busyboxes/status
   verbs:
   - get
 ---
@@ -988,6 +1030,27 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-example.com-memcached-admin-role
+rules:
+- apiGroups:
+  - example.com.testproject.org
+  resources:
+  - memcacheds
+  verbs:
+  - '*'
+- apiGroups:
+  - example.com.testproject.org
+  resources:
+  - memcacheds/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
   name: project-v4-multigroup-example.com-memcached-editor-role
 rules:
 - apiGroups:
@@ -1029,6 +1092,27 @@ rules:
   - example.com.testproject.org
   resources:
   - memcacheds/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-example.com-wordpress-admin-role
+rules:
+- apiGroups:
+  - example.com.testproject.org
+  resources:
+  - wordpresses
+  verbs:
+  - '*'
+- apiGroups:
+  - example.com.testproject.org
+  resources:
+  - wordpresses/status
   verbs:
   - get
 ---
@@ -1088,6 +1172,27 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-fiz-bar-admin-role
+rules:
+- apiGroups:
+  - fiz.testproject.org
+  resources:
+  - bars
+  verbs:
+  - '*'
+- apiGroups:
+  - fiz.testproject.org
+  resources:
+  - bars/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
   name: project-v4-multigroup-fiz-bar-editor-role
 rules:
 - apiGroups:
@@ -1127,6 +1232,27 @@ rules:
   - watch
 - apiGroups:
   - fiz.testproject.org
+  resources:
+  - bars/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-foo-bar-admin-role
+rules:
+- apiGroups:
+  - foo.testproject.org
+  resources:
+  - bars
+  verbs:
+  - '*'
+- apiGroups:
+  - foo.testproject.org
   resources:
   - bars/status
   verbs:
@@ -1179,6 +1305,27 @@ rules:
   - foo.testproject.org
   resources:
   - bars/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-foo.policy-healthcheckpolicy-admin-role
+rules:
+- apiGroups:
+  - foo.policy.testproject.org
+  resources:
+  - healthcheckpolicies
+  verbs:
+  - '*'
+- apiGroups:
+  - foo.policy.testproject.org
+  resources:
+  - healthcheckpolicies/status
   verbs:
   - get
 ---
@@ -1513,6 +1660,27 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-sea-creatures-kraken-admin-role
+rules:
+- apiGroups:
+  - sea-creatures.testproject.org
+  resources:
+  - krakens
+  verbs:
+  - '*'
+- apiGroups:
+  - sea-creatures.testproject.org
+  resources:
+  - krakens/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
   name: project-v4-multigroup-sea-creatures-kraken-editor-role
 rules:
 - apiGroups:
@@ -1554,6 +1722,27 @@ rules:
   - sea-creatures.testproject.org
   resources:
   - krakens/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-sea-creatures-leviathan-admin-role
+rules:
+- apiGroups:
+  - sea-creatures.testproject.org
+  resources:
+  - leviathans
+  verbs:
+  - '*'
+- apiGroups:
+  - sea-creatures.testproject.org
+  resources:
+  - leviathans/status
   verbs:
   - get
 ---
@@ -1613,6 +1802,27 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-ship-cruiser-admin-role
+rules:
+- apiGroups:
+  - ship.testproject.org
+  resources:
+  - cruisers
+  verbs:
+  - '*'
+- apiGroups:
+  - ship.testproject.org
+  resources:
+  - cruisers/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
   name: project-v4-multigroup-ship-cruiser-editor-role
 rules:
 - apiGroups:
@@ -1663,6 +1873,27 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-ship-destroyer-admin-role
+rules:
+- apiGroups:
+  - ship.testproject.org
+  resources:
+  - destroyers
+  verbs:
+  - '*'
+- apiGroups:
+  - ship.testproject.org
+  resources:
+  - destroyers/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
   name: project-v4-multigroup-ship-destroyer-editor-role
 rules:
 - apiGroups:
@@ -1704,6 +1935,27 @@ rules:
   - ship.testproject.org
   resources:
   - destroyers/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: project-v4-multigroup
+  name: project-v4-multigroup-ship-frigate-admin-role
+rules:
+- apiGroups:
+  - ship.testproject.org
+  resources:
+  - frigates
+  verbs:
+  - '*'
+- apiGroups:
+  - ship.testproject.org
+  resources:
+  - frigates/status
   verbs:
   - get
 ---
@@ -1819,6 +2071,7 @@ spec:
     protocol: TCP
     targetPort: 8443
   selector:
+    app.kubernetes.io/name: project-v4-multigroup
     control-plane: controller-manager
 ---
 apiVersion: v1
@@ -1835,6 +2088,7 @@ spec:
     protocol: TCP
     targetPort: 9443
   selector:
+    app.kubernetes.io/name: project-v4-multigroup
     control-plane: controller-manager
 ---
 apiVersion: apps/v1
@@ -1850,12 +2104,14 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      app.kubernetes.io/name: project-v4-multigroup
       control-plane: controller-manager
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
+        app.kubernetes.io/name: project-v4-multigroup
         control-plane: controller-manager
     spec:
       containers:
@@ -1863,6 +2119,7 @@ spec:
         - --metrics-bind-address=:8443
         - --leader-elect
         - --health-probe-bind-address=:8081
+        - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
         command:
         - /manager
         env:
@@ -1902,16 +2159,17 @@ spec:
             - ALL
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
-          name: cert
+          name: webhook-certs
           readOnly: true
       securityContext:
         runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: project-v4-multigroup-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
-      - name: cert
+      - name: webhook-certs
         secret:
-          defaultMode: 420
           secretName: webhook-server-cert
 ---
 apiVersion: admissionregistration.k8s.io/v1

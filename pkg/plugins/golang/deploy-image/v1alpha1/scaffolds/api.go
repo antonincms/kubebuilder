@@ -53,7 +53,6 @@ type apiScaffolder struct {
 }
 
 // NewDeployImageScaffolder returns a new Scaffolder for declarative
-// nolint: lll
 func NewDeployImageScaffolder(config config.Config, res resource.Resource, image,
 	command, port, runAsUser string,
 ) plugins.Scaffolder {
@@ -130,11 +129,7 @@ func (s *apiScaffolder) Scaffold() error {
 		return fmt.Errorf("error creating controller/**_controller_test.go: %v", err)
 	}
 
-	if err := s.addEnvVarIntoManager(); err != nil {
-		return err
-	}
-
-	return nil
+	return s.addEnvVarIntoManager()
 }
 
 // addEnvVarIntoManager will update the config/manager/manager.yaml by adding
@@ -216,8 +211,8 @@ func (s *apiScaffolder) updateControllerCode(controller controllers.Controller) 
 		res = strings.TrimLeft(res, " ")
 
 		if err := util.InsertCode(controller.Path, `SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
+							RunAsNonRoot:             ptr.To(true),
+							AllowPrivilegeEscalation: ptr.To(false),
 							Capabilities: &corev1.Capabilities{
 								Drop: []corev1.Capability{
 									"ALL",
@@ -234,8 +229,8 @@ func (s *apiScaffolder) updateControllerCode(controller controllers.Controller) 
 		if err := util.InsertCode(
 			controller.Path,
 			`SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
+							RunAsNonRoot:             ptr.To(true),
+							AllowPrivilegeEscalation: ptr.To(false),
 							Capabilities: &corev1.Capabilities{
 								Drop: []corev1.Capability{
 									"ALL",
@@ -256,7 +251,7 @@ func (s *apiScaffolder) updateControllerCode(controller controllers.Controller) 
 	if len(s.runAsUser) > 0 {
 		if err := util.InsertCode(
 			controller.Path,
-			`RunAsNonRoot:             &[]bool{true}[0],`,
+			`RunAsNonRoot:             ptr.To(true),`,
 			fmt.Sprintf(runAsUserTemplate, s.runAsUser),
 		); err != nil {
 			return fmt.Errorf("error scaffolding user-id in the controller path (%s): %v",
@@ -297,8 +292,8 @@ const containerTemplate = `Containers: []corev1.Container{{
 						// Ensure restrictive context for the container
 						// More info: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
 						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
+							RunAsNonRoot:             ptr.To(true),
+							AllowPrivilegeEscalation: ptr.To(false),
 							Capabilities: &corev1.Capabilities{
 								Drop: []corev1.Capability{
 									"ALL",
@@ -308,7 +303,7 @@ const containerTemplate = `Containers: []corev1.Container{{
 					}}`
 
 const runAsUserTemplate = `
-							RunAsUser:                &[]int64{%s}[0],`
+							RunAsUser:                ptr.To(int64(%s)),`
 
 const commandTemplate = `
 						Command: []string{%s},`

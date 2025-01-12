@@ -30,13 +30,15 @@ type E2eTestCi struct {
 	machinery.BoilerplateMixin
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *E2eTestCi) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = filepath.Join(".github", "workflows", "test-e2e.yml")
 	}
 
 	f.TemplateBody = e2eTestCiTemplate
+
+	f.IfExistsAction = machinery.SkipFile
 
 	return nil
 }
@@ -58,7 +60,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '~1.22'
+          go-version-file: go.mod
 
       - name: Install the latest version of kind
         run: |

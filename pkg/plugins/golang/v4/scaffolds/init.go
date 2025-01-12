@@ -36,12 +36,12 @@ import (
 )
 
 const (
+	// GolangciLintVersion is the golangci-lint version to be used in the project
+	GolangciLintVersion = "v1.62.2"
 	// ControllerRuntimeVersion is the kubernetes-sigs/controller-runtime version to be used in the project
-	ControllerRuntimeVersion = "v0.19.1"
+	ControllerRuntimeVersion = "v0.19.4"
 	// ControllerToolsVersion is the kubernetes-sigs/controller-tools version to be used in the project
-	ControllerToolsVersion = "v0.16.4"
-	// EnvtestK8SVersion is the k8s version used to do the scaffold
-	EnvtestK8SVersion = "1.31.0"
+	ControllerToolsVersion = "v0.17.0"
 
 	imageName = "controller:latest"
 )
@@ -55,18 +55,20 @@ type initScaffolder struct {
 	boilerplatePath string
 	license         string
 	owner           string
+	commandName     string
 
 	// fs is the filesystem that will be used by the scaffolder
 	fs machinery.Filesystem
 }
 
 // NewInitScaffolder returns a new Scaffolder for project initialization operations
-func NewInitScaffolder(config config.Config, license, owner string) plugins.Scaffolder {
+func NewInitScaffolder(config config.Config, license, owner, commandName string) plugins.Scaffolder {
 	return &initScaffolder{
 		config:          config,
 		boilerplatePath: hack.DefaultBoilerplatePath,
 		license:         license,
 		owner:           owner,
+		commandName:     commandName,
 	}
 }
 
@@ -154,19 +156,22 @@ func (s *initScaffolder) Scaffold() error {
 			BoilerplatePath:          s.boilerplatePath,
 			ControllerToolsVersion:   ControllerToolsVersion,
 			KustomizeVersion:         kustomizeVersion,
+			GolangciLintVersion:      GolangciLintVersion,
 			ControllerRuntimeVersion: ControllerRuntimeVersion,
 			EnvtestVersion:           getControllerRuntimeReleaseBranch(),
 		},
 		&templates.Dockerfile{},
 		&templates.DockerIgnore{},
-		&templates.Readme{},
+		&templates.Readme{CommandName: s.commandName},
 		&templates.Golangci{},
 		&e2e.Test{},
 		&e2e.WebhookTestUpdater{WireWebhook: false},
 		&e2e.SuiteTest{},
 		&github.E2eTestCi{},
 		&github.TestCi{},
-		&github.LintCi{},
+		&github.LintCi{
+			GolangciLintVersion: GolangciLintVersion,
+		},
 		&utils.Utils{},
 		&templates.DevContainer{},
 		&templates.DevContainerPostInstallScript{},

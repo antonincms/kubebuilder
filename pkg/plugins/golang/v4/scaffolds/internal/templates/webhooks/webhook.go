@@ -28,7 +28,7 @@ import (
 var _ machinery.Template = &Webhook{}
 
 // Webhook scaffolds the file that defines a webhook for a CRD or a builtin resource
-type Webhook struct { // nolint:maligned
+type Webhook struct { //nolint:maligned
 	machinery.TemplateMixin
 	machinery.MultiGroupMixin
 	machinery.BoilerplateMixin
@@ -49,11 +49,11 @@ type Webhook struct { // nolint:maligned
 	IsLegacyPath bool
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *Webhook) SetTemplateDefaults() error {
 	if f.Path == "" {
 		// Deprecated: Remove me when remove go/v4
-		// nolint:goconst
+		//nolint:goconst
 		baseDir := "api"
 		if !f.IsLegacyPath {
 			baseDir = filepath.Join("internal", "webhook")
@@ -163,7 +163,7 @@ func Setup{{ .Resource.Kind }}WebhookWithManager(mgr ctrl.Manager) error {
 {{ if .IsLegacyPath -}}
 // +kubebuilder:object:generate=false
 {{- end }}
-// {{ .Resource.Kind }}CustomDefaulter struct is responsible for setting default values on the custom resource of the 
+// {{ .Resource.Kind }}CustomDefaulter struct is responsible for setting default values on the custom resource of the
 // Kind {{ .Resource.Kind }} when those are created or updated.
 //
 // NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
@@ -184,7 +184,7 @@ func (d *{{ .Resource.Kind }}CustomDefaulter) Default(ctx context.Context, obj r
 
 	if !ok {
 		return fmt.Errorf("expected an {{ .Resource.Kind }} object but got %T", obj)
-	}	
+	}
 	{{ lower .Resource.Kind }}log.Info("Defaulting for {{ .Resource.Kind }}", "name", {{ lower .Resource.Kind }}.GetName())
 
 	// TODO(user): fill in your defaulting logic.
@@ -203,13 +203,13 @@ func (d *{{ .Resource.Kind }}CustomDefaulter) Default(ctx context.Context, obj r
 {{ if .IsLegacyPath -}}
 // +kubebuilder:object:generate=false
 {{- end }}
-// {{ .Resource.Kind }}CustomValidator struct is responsible for validating the {{ .Resource.Kind }} resource 
+// {{ .Resource.Kind }}CustomValidator struct is responsible for validating the {{ .Resource.Kind }} resource
 // when it is created, updated, or deleted.
 //
 // NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
 // as this struct is used only for temporary operations and does not need to be deeply copied.
 type {{ .Resource.Kind }}CustomValidator struct{
-	//TODO(user): Add more fields as needed for validation
+	// TODO(user): Add more fields as needed for validation
 }
 
 var _ webhook.CustomValidator = &{{ .Resource.Kind }}CustomValidator{}

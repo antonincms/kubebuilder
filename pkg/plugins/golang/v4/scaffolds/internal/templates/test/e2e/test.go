@@ -36,13 +36,14 @@ type Test struct {
 	machinery.ProjectNameMixin
 }
 
+// SetTemplateDefaults set defaults for this template
 func (f *Test) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = filepath.Join("test", "e2e", "e2e_test.go")
 	}
 
 	// This is where the template body is defined with markers
-	f.TemplateBody = TestTemplate
+	f.TemplateBody = testCodeTemplate
 
 	return nil
 }
@@ -99,6 +100,18 @@ func (f *WebhookTestUpdater) GetCodeFragments() machinery.CodeFragmentsMap {
 		)
 	}
 
+	if f.Resource.HasConversionWebhook() {
+		conversionWebhookCode := fmt.Sprintf(
+			conversionWebhookChecksFragment,
+			f.Resource.Kind,
+			f.Resource.Plural+"."+f.Resource.Group+"."+f.Resource.Domain,
+		)
+		codeFragments[machinery.NewMarkerFor(f.GetPath(), webhookChecksMarker)] = append(
+			codeFragments[machinery.NewMarkerFor(f.GetPath(), webhookChecksMarker)],
+			conversionWebhookCode,
+		)
+	}
+
 	return codeFragments
 }
 
@@ -130,7 +143,6 @@ const mutatingWebhookChecksFragment = `It("should have CA injection for mutating
 
 `
 
-// nolint:lll
 const validatingWebhookChecksFragment = `It("should have CA injection for validating webhooks", func() {
 	By("checking CA injection for validating webhooks")
 	verifyCAInjection := func(g Gomega) {
@@ -147,7 +159,23 @@ const validatingWebhookChecksFragment = `It("should have CA injection for valida
 
 `
 
-var TestTemplate = `{{ .Boilerplate }}
+const conversionWebhookChecksFragment = `It("should have CA injection for %[1]s conversion webhook", func() {
+	By("checking CA injection for %[1]s conversion webhook")
+	verifyCAInjection := func(g Gomega) {
+		cmd := exec.Command("kubectl", "get",
+			"customresourcedefinitions.apiextensions.k8s.io",
+			"%[2]s",
+			"-o", "go-template={{ .spec.conversion.webhook.clientConfig.caBundle }}")
+		vwhOutput, err := utils.Run(cmd)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(len(vwhOutput)).To(BeNumerically(">", 10))
+	}
+	Eventually(verifyCAInjection).Should(Succeed())
+})
+
+`
+
+var testCodeTemplate = `{{ .Boilerplate }}
 
 
 package e2e
@@ -177,14 +205,21 @@ const metricsRoleBindingName = "{{ .ProjectName }}-metrics-binding"
 
 var _ = Describe("Manager", Ordered, func() {
 	var controllerPodName string
-	
-	// Before running the tests, set up the environment by creating the namespace, 
-	// installing CRDs, and deploying the controller.
+
+	// Before running the tests, set up the environment by creating the namespace,
+	// enforce the restricted security policy to the namespace, installing CRDs,
+	// and deploying the controller.
 	BeforeAll(func() {
 		By("creating manager namespace")
 		cmd := exec.Command("kubectl", "create", "ns", namespace)
 		_, err := utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create namespace")
+
+		By("labeling the namespace to enforce the restricted security policy")
+		cmd = exec.Command("kubectl", "label", "--overwrite", "ns", namespace,
+			"pod-security.kubernetes.io/enforce=restricted")
+		_, err = utils.Run(cmd)
+		Expect(err).NotTo(HaveOccurred(), "Failed to label namespace with restricted policy")
 
 		By("installing CRDs")
 		cmd = exec.Command("make", "install")
@@ -197,7 +232,7 @@ var _ = Describe("Manager", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred(), "Failed to deploy the controller-manager")
 	})
 
-	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs, 
+	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
 	// and deleting the namespace.
 	AfterAll(func() {
 		By("cleaning up the curl pod for metrics")
@@ -226,27 +261,27 @@ var _ = Describe("Manager", Ordered, func() {
 			cmd := exec.Command("kubectl", "logs", controllerPodName, "-n", namespace)
 			controllerLogs, err := utils.Run(cmd)
 			if err == nil {
-				_, _ = fmt.Fprintf(GinkgoWriter, fmt.Sprintf("Controller logs:\n %s", controllerLogs))
+				_, _ = fmt.Fprintf(GinkgoWriter, "Controller logs:\n %s", controllerLogs)
 			} else {
-				_, _ = fmt.Fprintf(GinkgoWriter, fmt.Sprintf("Failed to get Controller logs: %s", err))
+				_, _ = fmt.Fprintf(GinkgoWriter, "Failed to get Controller logs: %s", err)
 			}
 
 			By("Fetching Kubernetes events")
 			cmd = exec.Command("kubectl", "get", "events", "-n", namespace, "--sort-by=.lastTimestamp")
 			eventsOutput, err := utils.Run(cmd)
 			if err == nil {
-				_, _ = fmt.Fprintf(GinkgoWriter, fmt.Sprintf("Kubernetes events:\n%s", eventsOutput))
+				_, _ = fmt.Fprintf(GinkgoWriter, "Kubernetes events:\n%s", eventsOutput)
 			} else {
-				_, _ = fmt.Fprintf(GinkgoWriter, fmt.Sprintf("Failed to get Kubernetes events: %s", err))
+				_, _ = fmt.Fprintf(GinkgoWriter, "Failed to get Kubernetes events: %s", err)
 			}
 
 			By("Fetching curl-metrics logs")
 			cmd = exec.Command("kubectl", "logs", "curl-metrics", "-n", namespace)
 			metricsOutput, err := utils.Run(cmd)
 			if err == nil {
-				_, _ = fmt.Fprintf(GinkgoWriter, fmt.Sprintf("Metrics logs:\n %s", metricsOutput))
+				_, _ = fmt.Fprintf(GinkgoWriter, "Metrics logs:\n %s", metricsOutput)
 			} else {
-				_, _ = fmt.Fprintf(GinkgoWriter, fmt.Sprintf("Failed to get curl-metrics logs: %s", err))
+				_, _ = fmt.Fprintf(GinkgoWriter, "Failed to get curl-metrics logs: %s", err)
 			}
 
 			By("Fetching controller manager pod description")
@@ -271,7 +306,7 @@ var _ = Describe("Manager", Ordered, func() {
 				cmd := exec.Command("kubectl", "get",
 					"pods", "-l", "control-plane=controller-manager",
 					"-o", "go-template={{"{{"}} range .items {{"}}"}}" +
-					"{{"{{"}} if not .metadata.deletionTimestamp {{"}}"}}" + 
+					"{{"{{"}} if not .metadata.deletionTimestamp {{"}}"}}" +
 					"{{"{{"}} .metadata.name {{"}}"}}"+
 					"{{"{{"}} \"\\n\" {{"}}"}}{{"{{"}} end {{"}}"}}{{"{{"}} end {{"}}"}}",
 					"-n", namespace,
@@ -342,10 +377,30 @@ var _ = Describe("Manager", Ordered, func() {
 			By("creating the curl-metrics pod to access the metrics endpoint")
 			cmd = exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
 				"--namespace", namespace,
-				"--image=curlimages/curl:7.78.0",
-				"--", "/bin/sh", "-c", fmt.Sprintf(
-					"curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics",
-					token, metricsServiceName, namespace))
+				"--image=curlimages/curl:latest",
+				"--overrides",
+				fmt.Sprintf(` + "`" + `{
+					"spec": {
+						"containers": [{
+							"name": "curl",
+							"image": "curlimages/curl:latest",
+							"command": ["/bin/sh", "-c"],
+							"args": ["curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics"],
+							"securityContext": {
+								"allowPrivilegeEscalation": false,
+								"capabilities": {
+									"drop": ["ALL"]
+								},
+								"runAsNonRoot": true,
+								"runAsUser": 1000,
+								"seccompProfile": {
+									"type": "RuntimeDefault"
+								}
+							}
+						}],
+						"serviceAccount": "%s"
+					}
+				}` + "`" + `, token, metricsServiceName, namespace, serviceAccountName))
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create curl-metrics pod")
 
@@ -369,10 +424,10 @@ var _ = Describe("Manager", Ordered, func() {
 
 		// +kubebuilder:scaffold:e2e-webhooks-checks
 
-		// TODO: Customize the e2e test suite with scenarios specific to your project. 
-		// Consider applying sample/CR(s) and check their status and/or verifying 
+		// TODO: Customize the e2e test suite with scenarios specific to your project.
+		// Consider applying sample/CR(s) and check their status and/or verifying
 		// the reconciliation by using the metrics, i.e.:
-		// metricsOutput := getMetricsOutput()		
+		// metricsOutput := getMetricsOutput()
 		// Expect(metricsOutput).To(ContainSubstring(
 		//    fmt.Sprintf(` + "`controller_runtime_reconcile_total{controller=\"%s\",result=\"success\"} 1`" + `,
 		//    strings.ToLower(<Kind>),
@@ -381,7 +436,7 @@ var _ = Describe("Manager", Ordered, func() {
 })
 
 // serviceAccountToken returns a token for the specified service account in the given namespace.
-// It uses the Kubernetes TokenRequest API to generate a token by directly sending a request 
+// It uses the Kubernetes TokenRequest API to generate a token by directly sending a request
 // and parsing the resulting token from the API response.
 func serviceAccountToken() (string, error) {
 	const tokenRequestRawString = ` + "`" + `{
@@ -411,7 +466,7 @@ func serviceAccountToken() (string, error) {
 
 		// Parse the JSON output to extract the token
 		var token tokenRequest
-		err = json.Unmarshal([]byte(output), &token)
+		err = json.Unmarshal(output, &token)
 		g.Expect(err).NotTo(HaveOccurred())
 
 		out = token.Status.Token

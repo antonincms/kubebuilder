@@ -28,18 +28,21 @@ import (
 	"sigs.k8s.io/kubebuilder/v4/test/e2e/utils"
 )
 
+// Sample define the sample which will be scaffolded
 type Sample struct {
 	ctx *utils.TestContext
 }
 
+// NewSample create a new instance of the getting started sample and configure the KB CLI that will be used
 func NewSample(binaryPath, samplePath string) Sample {
 	log.Infof("Generating the sample context of getting-started...")
 	ctx := hackutils.NewSampleContext(binaryPath, samplePath, "GO111MODULE=on")
 	return Sample{&ctx}
 }
 
+// UpdateTutorial the getting started sample tutorial with the scaffold changes
 func (sp *Sample) UpdateTutorial() {
-	sp.updateApi()
+	sp.updateAPI()
 	sp.updateSample()
 	sp.updateController()
 	sp.updateControllerTest()
@@ -100,7 +103,7 @@ func (sp *Sample) updateControllerTest() {
 	hackutils.CheckError("add spec apis", err)
 }
 
-func (sp *Sample) updateApi() {
+func (sp *Sample) updateAPI() {
 	var err error
 	path := "api/v1alpha1/memcached_types.go"
 	err = pluginutil.InsertCode(
@@ -122,10 +125,10 @@ func (sp *Sample) updateApi() {
 `)
 	hackutils.CheckError("collapse imports in memcached api", err)
 
-	err = pluginutil.ReplaceInFile(filepath.Join(sp.ctx.Dir, path), oldSpecApi, newSpecApi)
+	err = pluginutil.ReplaceInFile(filepath.Join(sp.ctx.Dir, path), oldSpecAPI, newSpecAPI)
 	hackutils.CheckError("replace spec api", err)
 
-	err = pluginutil.ReplaceInFile(filepath.Join(sp.ctx.Dir, path), oldStatusApi, newStatusApi)
+	err = pluginutil.ReplaceInFile(filepath.Join(sp.ctx.Dir, path), oldStatusAPI, newStatusAPI)
 	hackutils.CheckError("replace status api", err)
 }
 
@@ -208,6 +211,7 @@ func (sp *Sample) Prepare() {
 	hackutils.CheckError("Creating directory for sample project", err)
 }
 
+// GenerateSampleProject will generate the sample
 func (sp *Sample) GenerateSampleProject() {
 	log.Infof("Initializing the getting started project")
 	err := sp.ctx.Init(
@@ -228,6 +232,7 @@ func (sp *Sample) GenerateSampleProject() {
 	hackutils.CheckError("Creating the API", err)
 }
 
+// CodeGen will call targets to generate code
 func (sp *Sample) CodeGen() {
 	cmd := exec.Command("go", "mod", "tidy")
 	_, err := sp.ctx.Run(cmd)
@@ -242,8 +247,8 @@ func (sp *Sample) CodeGen() {
 	hackutils.CheckError("Failed to run make build-installer for getting started tutorial", err)
 }
 
-const oldSpecApi = "// Foo is an example field of Memcached. Edit memcached_types.go to remove/update\n\tFoo string `json:\"foo,omitempty\"`"
-const newSpecApi = `// Size defines the number of Memcached instances
+const oldSpecAPI = "// Foo is an example field of Memcached. Edit memcached_types.go to remove/update\n\tFoo string `json:\"foo,omitempty\"`"
+const newSpecAPI = `// Size defines the number of Memcached instances
 	// The following markers will use OpenAPI v3 schema to validate the value
 	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
 	// +kubebuilder:validation:Minimum=1
@@ -251,10 +256,10 @@ const newSpecApi = `// Size defines the number of Memcached instances
 	// +kubebuilder:validation:ExclusiveMaximum=false
 	Size int32 ` + "`json:\"size,omitempty\"`"
 
-const oldStatusApi = `// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+const oldStatusAPI = `// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file`
 
-const newStatusApi = `// Represents the observations of a Memcached's current state.
+const newStatusAPI = `// Represents the observations of a Memcached's current state.
 	// Memcached.status.conditions.type are: "Available", "Progressing", and "Degraded"
 	// Memcached.status.conditions.status are one of True, False, Unknown.
 	// Memcached.status.conditions.reason the value should be a CamelCase string and producers of specific
@@ -278,6 +283,7 @@ const controllerImports = `"context"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 `
 
 const controllerStatusTypes = `
@@ -285,8 +291,6 @@ const controllerStatusTypes = `
 const (
 	// typeAvailableMemcached represents the status of the Deployment reconciliation
 	typeAvailableMemcached = "Available"
-	// typeDegradedMemcached represents the status used when the custom resource is deleted and the finalizer operations are yet to occur.
-	typeDegradedMemcached = "Degraded"
 )`
 
 const controllerInfoReconcileOld = `// TODO(user): Modify the Reconcile function to compare the state specified by
@@ -449,7 +453,7 @@ func (r *MemcachedReconciler) deploymentForMemcached(
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: &[]bool{true}[0],
+						RunAsNonRoot: ptr.To(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type: corev1.SeccompProfileTypeRuntimeDefault,
 						},
@@ -461,9 +465,9 @@ func (r *MemcachedReconciler) deploymentForMemcached(
 						// Ensure restrictive context for the container
 						// More info: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
 						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							RunAsUser:                &[]int64{1001}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
+							RunAsNonRoot:             ptr.To(true),
+							RunAsUser:                ptr.To(int64(1001)),
+							AllowPrivilegeEscalation: ptr.To(false),
 							Capabilities: &corev1.Capabilities{
 								Drop: []corev1.Capability{
 									"ALL",

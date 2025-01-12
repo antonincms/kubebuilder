@@ -17,7 +17,7 @@ manage any changes within their domain of responsibility.
 
 If you are interested in this type of integration, collaborating with the
 maintainers of the third-party solution is recommended. Kubebuilder's maintainers
-is always willing to provide support in extending its capabilities.
+are always willing to provide support in extending its capabilities.
 
 ## How to Write an External Plugin
 
@@ -117,7 +117,7 @@ Otherwise, Kubebuilder would search for the plugins in a default path based on y
 
 ### Example CLI Commands
 
-Now, you can using it by calling the CLI commands:
+You can now use it by calling the CLI commands:
 
 ```sh
 # Initialize a new project with the external plugin named `sampleplugin`
@@ -148,4 +148,4 @@ kubebuilder create api --plugins go/v4,sampleplugin/v1
 - A [sample external plugin written in Python](https://github.com/rashmigottipati/POC-Phase2-Plugins)
 - A [sample external plugin written in JavaScript](https://github.com/Eileen-Yu/kb-js-plugin)
 
-[code-plugin-external]: ./../../../../../pkg/plugin/external/types.go
+[code-plugin-external]: https://github.com/kubernetes-sigs/kubebuilder/blob/book-v4/pkg/plugin/external/types.go

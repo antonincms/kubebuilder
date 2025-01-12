@@ -18,7 +18,6 @@ package v4
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -26,11 +25,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	pluginutil "sigs.k8s.io/kubebuilder/v4/pkg/plugin/util"
-
-	//nolint:golint
-	// nolint:revive
-	//nolint:golint
-	// nolint:revive
 	"sigs.k8s.io/kubebuilder/v4/test/e2e/utils"
 )
 
@@ -46,15 +40,16 @@ func GenerateV4(kbc *utils.TestContext) {
 		"--kind", kbc.Kind,
 		"--defaulting",
 		"--programmatic-validation",
+		"--make=false",
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to scaffolding mutating webhook")
 
 	By("implementing the mutating and validating webhooks")
 	webhookFilePath := filepath.Join(
 		kbc.Dir, "internal/webhook", kbc.Version,
 		fmt.Sprintf("%s_webhook.go", strings.ToLower(kbc.Kind)))
 	err = utils.ImplementWebhooks(webhookFilePath, strings.ToLower(kbc.Kind))
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to implement webhooks")
 
 	scaffoldConversionWebhook(kbc)
 
@@ -65,12 +60,20 @@ func GenerateV4(kbc *utils.TestContext) {
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		"#- ../prometheus", "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		`#replacements:`, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		certManagerTarget, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(
+		filepath.Join(kbc.Dir, "config", "prometheus", "kustomization.yaml"),
+		monitorTLSPatch, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(
+		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		metricsCertPatch, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(
+		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		metricsCertReplaces, "#")).To(Succeed())
+	uncommentKustomizeCoversion(kbc)
 
-	if kbc.IsRestricted {
-		By("uncomment kustomize files to ensure that pods are restricted")
-		uncommentPodStandards(kbc)
-	}
 }
 
 // GenerateV4WithoutMetrics implements a go/v4 plugin project defined by a TestContext.
@@ -85,15 +88,16 @@ func GenerateV4WithoutMetrics(kbc *utils.TestContext) {
 		"--kind", kbc.Kind,
 		"--defaulting",
 		"--programmatic-validation",
+		"--make=false",
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to scaffolding mutating webhook")
 
 	By("implementing the mutating and validating webhooks")
 	webhookFilePath := filepath.Join(
 		kbc.Dir, "internal/webhook", kbc.Version,
 		fmt.Sprintf("%s_webhook.go", strings.ToLower(kbc.Kind)))
 	err = utils.ImplementWebhooks(webhookFilePath, strings.ToLower(kbc.Kind))
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to implement webhooks")
 
 	scaffoldConversionWebhook(kbc)
 
@@ -104,6 +108,8 @@ func GenerateV4WithoutMetrics(kbc *utils.TestContext) {
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		"#- ../prometheus", "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		`#replacements:`, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		certManagerTarget, "#")).To(Succeed())
 	// Disable metrics
 	ExpectWithOffset(1, pluginutil.CommentCode(
@@ -113,10 +119,7 @@ func GenerateV4WithoutMetrics(kbc *utils.TestContext) {
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		metricsTarget, "#")).To(Succeed())
 
-	if kbc.IsRestricted {
-		By("uncomment kustomize files to ensure that pods are restricted")
-		uncommentPodStandards(kbc)
-	}
+	uncommentKustomizeCoversion(kbc)
 }
 
 // GenerateV4WithoutMetrics implements a go/v4 plugin project defined by a TestContext.
@@ -148,15 +151,16 @@ func GenerateV4WithNetworkPolicies(kbc *utils.TestContext) {
 		"--kind", kbc.Kind,
 		"--defaulting",
 		"--programmatic-validation",
+		"--make=false",
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to scaffolding mutating webhook")
 
 	By("implementing the mutating and validating webhooks")
 	webhookFilePath := filepath.Join(
 		kbc.Dir, "internal/webhook", kbc.Version,
 		fmt.Sprintf("%s_webhook.go", strings.ToLower(kbc.Kind)))
 	err = utils.ImplementWebhooks(webhookFilePath, strings.ToLower(kbc.Kind))
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to implement webhooks")
 
 	scaffoldConversionWebhook(kbc)
 
@@ -169,13 +173,27 @@ func GenerateV4WithNetworkPolicies(kbc *utils.TestContext) {
 	ExpectWithOffset(1, pluginutil.UncommentCode(
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		metricsTarget, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(
+		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		metricsCertPatch, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(
+		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		metricsCertReplaces, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(
+		filepath.Join(kbc.Dir, "config", "prometheus", "kustomization.yaml"),
+		monitorTLSPatch, "#")).To(Succeed())
+
 	By("uncomment kustomization.yaml to enable network policy")
 	ExpectWithOffset(1, pluginutil.UncommentCode(
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		"#- ../network-policy", "#")).To(Succeed())
 
 	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		`#replacements:`, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		certManagerTarget, "#")).To(Succeed())
+
+	uncommentKustomizeCoversion(kbc)
 }
 
 // GenerateV4WithoutWebhooks implements a go/v4 plugin with APIs and enable Prometheus and CertManager
@@ -186,11 +204,6 @@ func GenerateV4WithoutWebhooks(kbc *utils.TestContext) {
 	ExpectWithOffset(1, pluginutil.UncommentCode(
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		"#- ../prometheus", "#")).To(Succeed())
-
-	if kbc.IsRestricted {
-		By("uncomment kustomize files to ensure that pods are restricted")
-		uncommentPodStandards(kbc)
-	}
 }
 
 func creatingAPI(kbc *utils.TestContext) {
@@ -204,7 +217,7 @@ func creatingAPI(kbc *utils.TestContext) {
 		"--controller",
 		"--make=false",
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to create API")
 
 	By("implementing the API")
 	ExpectWithOffset(1, pluginutil.InsertCode(
@@ -223,16 +236,14 @@ func initingTheProject(kbc *utils.TestContext) {
 		"--project-version", "3",
 		"--domain", kbc.Domain,
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to initialize project")
 }
 
 const metricsTarget = `- path: manager_metrics_patch.yaml
   target:
     kind: Deployment`
 
-//nolint:lll
-const certManagerTarget = `#replacements:
-# - source: # Uncomment the following block if you have any webhook
+const certManagerTarget = `# - source: # Uncomment the following block if you have any webhook
 #     kind: Service
 #     version: v1
 #     name: webhook-service
@@ -242,6 +253,7 @@ const certManagerTarget = `#replacements:
 #         kind: Certificate
 #         group: cert-manager.io
 #         version: v1
+#         name: serving-cert
 #       fieldPaths:
 #         - .spec.dnsNames.0
 #         - .spec.dnsNames.1
@@ -259,6 +271,7 @@ const certManagerTarget = `#replacements:
 #         kind: Certificate
 #         group: cert-manager.io
 #         version: v1
+#         name: serving-cert
 #       fieldPaths:
 #         - .spec.dnsNames.0
 #         - .spec.dnsNames.1
@@ -286,7 +299,7 @@ const certManagerTarget = `#replacements:
 #     kind: Certificate
 #     group: cert-manager.io
 #     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
+#     name: serving-cert
 #     fieldPath: .metadata.name
 #   targets:
 #     - select:
@@ -302,7 +315,7 @@ const certManagerTarget = `#replacements:
 #     kind: Certificate
 #     group: cert-manager.io
 #     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
+#     name: serving-cert
 #     fieldPath: .metadata.namespace # Namespace of the certificate CR
 #   targets:
 #     - select:
@@ -317,42 +330,11 @@ const certManagerTarget = `#replacements:
 #     kind: Certificate
 #     group: cert-manager.io
 #     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
+#     name: serving-cert
 #     fieldPath: .metadata.name
 #   targets:
 #     - select:
 #         kind: MutatingWebhookConfiguration
-#       fieldPaths:
-#         - .metadata.annotations.[cert-manager.io/inject-ca-from]
-#       options:
-#         delimiter: '/'
-#         index: 1
-#         create: true
-#
-# - source: # Uncomment the following block if you have a ConversionWebhook (--conversion)
-#     kind: Certificate
-#     group: cert-manager.io
-#     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
-#     fieldPath: .metadata.namespace # Namespace of the certificate CR
-#   targets:
-#     - select:
-#         kind: CustomResourceDefinition
-#       fieldPaths:
-#         - .metadata.annotations.[cert-manager.io/inject-ca-from]
-#       options:
-#         delimiter: '/'
-#         index: 0
-#         create: true
-# - source:
-#     kind: Certificate
-#     group: cert-manager.io
-#     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
-#     fieldPath: .metadata.name
-#   targets:
-#     - select:
-#         kind: CustomResourceDefinition
 #       fieldPaths:
 #         - .metadata.annotations.[cert-manager.io/inject-ca-from]
 #       options:
@@ -360,21 +342,39 @@ const certManagerTarget = `#replacements:
 #         index: 1
 #         create: true`
 
-func uncommentPodStandards(kbc *utils.TestContext) {
-	configManager := filepath.Join(kbc.Dir, "config", "manager", "manager.yaml")
+const certNamespace = `# - source: # Uncomment the following block if you have a ConversionWebhook (--conversion)
+#     kind: Certificate
+#     group: cert-manager.io
+#     version: v1
+#     name: serving-cert
+#     fieldPath: .metadata.namespace # Namespace of the certificate CR
+#   targets: # Do not remove or uncomment the following scaffold marker; required to generate code for target CRD.
+#     - select:
+#         kind: CustomResourceDefinition
+#         name: conversiontests.%s.%s
+#       fieldPaths:
+#         - .metadata.annotations.[cert-manager.io/inject-ca-from]
+#       options:
+#         delimiter: '/'
+#         index: 0
+#         create: true`
 
-	//nolint:lll
-	if err := pluginutil.ReplaceInFile(configManager, `# TODO(user): For common cases that do not require escalating privileges
-        # it is recommended to ensure that all your Pods/Containers are restrictive.
-        # More info: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
-        # Please uncomment the following code if your project does NOT have to work on old Kubernetes
-        # versions < 1.19 or on vendors versions which do NOT support this field by default (i.e. Openshift < 4.11 ).
-        # seccompProfile:
-        #   type: RuntimeDefault`, `seccompProfile:
-          type: RuntimeDefault`); err == nil {
-		ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	}
-}
+const certName = `# - source:
+#     kind: Certificate
+#     group: cert-manager.io
+#     version: v1
+#     name: serving-cert
+#     fieldPath: .metadata.name
+#   targets: # Do not remove or uncomment the following scaffold marker; required to generate code for target CRD.
+#     - select:
+#         kind: CustomResourceDefinition
+#         name: conversiontests.%s.%s
+#       fieldPaths:
+#         - .metadata.annotations.[cert-manager.io/inject-ca-from]
+#       options:
+#         delimiter: '/'
+#         index: 1
+#         create: true`
 
 // scaffoldConversionWebhook sets up conversion webhooks for testing the ConversionTest API
 func scaffoldConversionWebhook(kbc *utils.TestContext) {
@@ -409,6 +409,7 @@ func scaffoldConversionWebhook(kbc *utils.TestContext) {
 		"--version", "v1",
 		"--kind", "ConversionTest",
 		"--conversion",
+		"--spoke", "v2",
 		"--make=false",
 	)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to create conversion webhook for v1")
@@ -427,62 +428,69 @@ func scaffoldConversionWebhook(kbc *utils.TestContext) {
 		filepath.Join(kbc.Dir, "api", "v2", "conversiontest_types.go"),
 		"Foo string `json:\"foo,omitempty\"`",
 		"\n\tReplicas int `json:\"replicas,omitempty\"` // Number of replicas",
-	)).NotTo(HaveOccurred(), "failed to add replicas spec to conversiontest_types v2")
+	)).NotTo(HaveOccurred(), "failed to add replicas spec to conversiontest_conversion.go v2")
 
-	// TODO: Remove the code bellow when we have hub and spoke scaffolded by
-	// Kubebuilder. Intead of create the file we will replace the TODO(user)
-	// with the code implementation.
-	By("implementing markers")
-	ExpectWithOffset(1, pluginutil.InsertCode(
-		filepath.Join(kbc.Dir, "api", "v1", "conversiontest_types.go"),
-		"// +kubebuilder:object:root=true\n// +kubebuilder:subresource:status",
-		"\n// +kubebuilder:storageversion\n// +kubebuilder:conversion:hub\n",
-	)).NotTo(HaveOccurred(), "failed to add markers to conversiontest_types v1")
+	err = pluginutil.ReplaceInFile(filepath.Join(kbc.Dir, "api/v2/conversiontest_conversion.go"),
+		"// TODO(user): Implement conversion logic from v1 to v2",
+		`src.Spec.Size = dst.Spec.Replicas`)
+	Expect(err).NotTo(HaveOccurred(), "failed to implement conversion logic from v1 to v2")
 
-	// Create the hub conversion file in v1
-	By("creating the conversion implementation in v1 as hub")
-	err = os.WriteFile(filepath.Join(kbc.Dir, "api", "v1", "conversiontest_conversion.go"), []byte(`
-package v1
-
-// ConversionTest defines the hub conversion logic.
-// Implement the Hub interface to signal that v1 is the hub version.
-func (*ConversionTest) Hub() {}
-`), 0644)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to create hub conversion file in v1")
-
-	// Create the conversion file in v2
-	By("creating the conversion implementation in v2")
-	err = os.WriteFile(filepath.Join(kbc.Dir, "api", "v2", "conversiontest_conversion.go"), []byte(`
-package v2
-
-import (
-	"log"
-
-	"sigs.k8s.io/controller-runtime/pkg/conversion"
-	v1 "sigs.k8s.io/kubebuilder/v4/api/v1"
-)
-
-// ConvertTo converts this ConversionTest to the Hub version (v1).
-func (src *ConversionTest) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1.ConversionTest)
-	log.Printf("Converting from %T to %T", src.APIVersion, dst.APIVersion)
-
-	// Implement conversion logic from v2 to v1
-	dst.Spec.Size = src.Spec.Replicas // Convert replicas in v2 to size in v1
-
-	return nil
+	err = pluginutil.ReplaceInFile(filepath.Join(kbc.Dir, "api/v2/conversiontest_conversion.go"),
+		"// TODO(user): Implement conversion logic from v2 to v1",
+		`src.Spec.Replicas = dst.Spec.Size`)
+	Expect(err).NotTo(HaveOccurred(), "failed to implement conversion logic from v2 to v1")
 }
 
-// ConvertFrom converts the Hub version (v1) to this ConversionTest (v2).
-func (dst *ConversionTest) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*v1.ConversionTest)
-	log.Printf("Converting from %T to %T", src.APIVersion, dst.APIVersion)
-
-	// Implement conversion logic from v1 to v2
-	dst.Spec.Replicas = src.Spec.Size // Convert size in v1 to replicas in v2
-
-	return nil
+func uncommentKustomizeCoversion(kbc *utils.TestContext) {
+	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		fmt.Sprintf(certNamespace, kbc.Group, kbc.Domain), "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		fmt.Sprintf(certName, kbc.Group, kbc.Domain), "#")).To(Succeed())
 }
-`), 0644)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to create conversion file in v2")
-}
+
+const monitorTLSPatch = `#patches:
+#  - path: monitor_tls_patch.yaml
+#    target:
+#      kind: ServiceMonitor`
+
+const metricsCertPatch = `#- path: cert_metrics_manager_patch.yaml
+#  target:
+#    kind: Deployment`
+
+const metricsCertReplaces = `# - source: # Uncomment the following block to enable certificates for metrics
+#     kind: Service
+#     version: v1
+#     name: controller-manager-metrics-service
+#     fieldPath: metadata.name
+#   targets:
+#     - select:
+#         kind: Certificate
+#         group: cert-manager.io
+#         version: v1
+#         name: metrics-certs
+#       fieldPaths:
+#         - spec.dnsNames.0
+#         - spec.dnsNames.1
+#       options:
+#         delimiter: '.'
+#         index: 0
+#         create: true
+#
+# - source:
+#     kind: Service
+#     version: v1
+#     name: controller-manager-metrics-service
+#     fieldPath: metadata.namespace
+#   targets:
+#     - select:
+#         kind: Certificate
+#         group: cert-manager.io
+#         version: v1
+#         name: metrics-certs
+#       fieldPaths:
+#         - spec.dnsNames.0
+#         - spec.dnsNames.1
+#       options:
+#         delimiter: '.'
+#         index: 1
+#         create: true`

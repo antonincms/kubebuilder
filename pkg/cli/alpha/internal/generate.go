@@ -31,20 +31,20 @@ import (
 	"sigs.k8s.io/kubebuilder/v4/pkg/config/store/yaml"
 	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v4/pkg/model/resource"
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugin"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugin/util"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/deploy-image/v1alpha1"
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/optional/grafana/v1alpha"
+	hemlv1alpha "sigs.k8s.io/kubebuilder/v4/pkg/plugins/optional/helm/v1alpha"
 )
 
+// Generate store the required info for the command
 type Generate struct {
 	InputDir  string
 	OutputDir string
 }
 
-const (
-	defaultOutputDir     = "output-dir"
-	grafanaPluginKey     = "grafana.kubebuilder.io/v1-alpha"
-	deployImagePluginKey = "deploy-image.go.kubebuilder.io/v1-alpha"
-)
+const defaultOutputDir = "output-dir"
 
 // Generate handles the migration and scaffolding process.
 func (opts *Generate) Generate() error {
@@ -77,11 +77,12 @@ func (opts *Generate) Generate() error {
 		return err
 	}
 
-	if err := migrateDeployImagePlugin(config); err != nil {
-		return err
+	if hasHelmPlugin(config) {
+		if err := kubebuilderHelmEdit(); err != nil {
+			return err
+		}
 	}
-
-	return nil
+	return migrateDeployImagePlugin(config)
 }
 
 // Validate ensures the options are valid and kubebuilder is installed.
@@ -156,12 +157,18 @@ func kubebuilderCreate(store store.Store) error {
 		return fmt.Errorf("failed to get resources: %w", err)
 	}
 
+	// First, scaffold all APIs
 	for _, r := range resources {
 		if err := createAPI(r); err != nil {
-			return fmt.Errorf("failed to create API: %w", err)
+			return fmt.Errorf("failed to create API for %s/%s/%s: %w", r.Group, r.Version, r.Kind, err)
 		}
+	}
+
+	// Then, scaffold all webhooks
+	// We cannot create a webhook for an API that does not exist
+	for _, r := range resources {
 		if err := createWebhook(r); err != nil {
-			return fmt.Errorf("failed to create webhook: %w", err)
+			return fmt.Errorf("failed to create webhook for %s/%s/%s: %w", r.Group, r.Version, r.Kind, err)
 		}
 	}
 
@@ -171,7 +178,7 @@ func kubebuilderCreate(store store.Store) error {
 // Migrates the Grafana plugin.
 func migrateGrafanaPlugin(store store.Store, src, des string) error {
 	var grafanaPlugin struct{}
-	err := store.Config().DecodePluginConfig(grafanaPluginKey, grafanaPlugin)
+	err := store.Config().DecodePluginConfig(plugin.KeyFor(v1alpha.Plugin{}), grafanaPlugin)
 	if errors.As(err, &config.PluginKeyNotFoundError{}) {
 		log.Info("Grafana plugin not found, skipping migration")
 		return nil
@@ -193,7 +200,7 @@ func migrateGrafanaPlugin(store store.Store, src, des string) error {
 // Migrates the Deploy Image plugin.
 func migrateDeployImagePlugin(store store.Store) error {
 	var deployImagePlugin v1alpha1.PluginConfig
-	err := store.Config().DecodePluginConfig(deployImagePluginKey, &deployImagePlugin)
+	err := store.Config().DecodePluginConfig(plugin.KeyFor(v1alpha1.Plugin{}), &deployImagePlugin)
 	if errors.As(err, &config.PluginKeyNotFoundError{}) {
 		log.Info("Deploy-image plugin not found, skipping migration")
 		return nil
@@ -301,7 +308,7 @@ func getDeployImageOptions(resource v1alpha1.ResourceData) []string {
 	if resource.Options.RunAsUser != "" {
 		args = append(args, fmt.Sprintf("--run-as-user=%s", resource.Options.RunAsUser))
 	}
-	args = append(args, fmt.Sprintf("--plugins=%s", "deploy-image/v1-alpha"))
+	args = append(args, fmt.Sprintf("--plugins=%s", plugin.KeyFor(v1alpha1.Plugin{})))
 	return args
 }
 
@@ -354,14 +361,19 @@ func createWebhook(resource resource.Resource) error {
 // Gets flags for webhook creation.
 func getWebhookResourceFlags(resource resource.Resource) []string {
 	var args []string
-	if resource.HasConversionWebhook() {
-		args = append(args, "--conversion")
-	}
 	if resource.HasValidationWebhook() {
 		args = append(args, "--programmatic-validation")
 	}
 	if resource.HasDefaultingWebhook() {
 		args = append(args, "--defaulting")
+	}
+	if resource.HasConversionWebhook() {
+		args = append(args, "--conversion")
+		if len(resource.Webhooks.Spoke) > 0 {
+			for _, spoke := range resource.Webhooks.Spoke {
+				args = append(args, "--spoke", spoke)
+			}
+		}
 	}
 	return args
 }
@@ -386,9 +398,38 @@ func grafanaConfigMigrate(src, des string) error {
 
 // Edits the project to include the Grafana plugin.
 func kubebuilderGrafanaEdit() error {
-	args := []string{"edit", "--plugins", grafanaPluginKey}
+	args := []string{"edit", "--plugins", plugin.KeyFor(v1alpha.Plugin{})}
 	if err := util.RunCmd("kubebuilder edit", "kubebuilder", args...); err != nil {
 		return fmt.Errorf("failed to run edit subcommand for Grafana plugin: %w", err)
 	}
 	return nil
+}
+
+// Edits the project to include the Helm plugin.
+func kubebuilderHelmEdit() error {
+	args := []string{"edit", "--plugins", plugin.KeyFor(hemlv1alpha.Plugin{})}
+	if err := util.RunCmd("kubebuilder edit", "kubebuilder", args...); err != nil {
+		return fmt.Errorf("failed to run edit subcommand for Helm plugin: %w", err)
+	}
+	return nil
+}
+
+// hasHelmPlugin checks if the Helm plugin is present by inspecting the plugin chain or configuration.
+func hasHelmPlugin(cfg store.Store) bool {
+	var pluginConfig map[string]interface{}
+
+	// Decode the Helm plugin configuration to check if it's present
+	err := cfg.Config().DecodePluginConfig(plugin.KeyFor(hemlv1alpha.Plugin{}), &pluginConfig)
+	if err != nil {
+		// If the Helm plugin is not found, return false
+		if errors.As(err, &config.PluginKeyNotFoundError{}) {
+			return false
+		}
+		// Log other errors if needed
+		log.Errorf("Error decoding Helm plugin config: %v", err)
+		return false
+	}
+
+	// Helm plugin is present
+	return true
 }

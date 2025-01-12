@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Kubernetes authors.
+Copyright 2025 The Kubernetes authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -162,6 +162,16 @@ var _ = Describe("CronJob Webhook", func() {
 			Expect(validator.ValidateUpdate(ctx, oldObj, obj)).To(BeNil(),
 				"Expected validation to pass for a valid update")
 		})
+	})
+
+	Context("When creating CronJob under Conversion Webhook", func() {
+		// TODO (user): Add logic to convert the object to the desired version and verify the conversion
+		// Example:
+		// It("Should convert the object correctly", func() {
+		//     convertedObj := &batchv1.CronJob{}
+		//     Expect(obj.ConvertTo(convertedObj)).To(Succeed())
+		//     Expect(convertedObj).ToNot(BeNil())
+		// })
 	})
 
 })
